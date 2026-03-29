@@ -3,7 +3,7 @@
 一个面向个人创作者的小红书内容生产最小闭环：
 输入选题关键词，自动完成热点筛选、选题推荐、图文草稿生成和配图 Prompt 扩写。
 
-- 架构：4 Agent + 2 数据源 + 1 CLI 入口
+- 架构：6 Agent + 2 数据源 + 1 CLI 入口
 - 依赖：3 个 Python 包
 - 成本：单一 DeepSeek API Key
 
@@ -15,10 +15,12 @@
 运行一次命令后，系统会自动执行：
 
 1. Scout：采集 B站 + 微博热点，并过滤 AI/AIGC/二次元/技术相关话题
-2. Strategist：结合你的关键词与热点，推荐并评分 3-5 个选题
-3. Writer：生成小红书图文草稿（标题、正文、标签、5条基础配图描述）
-4. ArtDirector：将 5 条基础描述扩写成 20 条候选配图 Prompt
-5. 输出：自动写入 output 目录，便于你人工审核和发布
+2. Strategist：结合你的关键词与热点，生成 8-10 个候选选题池
+3. ResonanceAnalyst：分析用户为什么会点进来，给出情绪入口与观看场景
+4. EvidenceBuilder：生成内容 brief，补齐真实细节、结构和互动问题
+5. Writer：基于 topic + resonance + brief 生成小红书草稿
+6. ArtDirector：将 5 条基础描述扩写成 20 条候选配图 Prompt
+7. 输出：自动写入 output 目录，便于你人工审核和发布
 
 ### 1.2 统一 LLM 调用
 - Scout / ArtDirector：deepseek-chat
@@ -28,6 +30,7 @@
 ### 1.3 最小但可用的内容交付
 - 自动生成 Markdown 草稿
 - 自动追加配图 Prompt 包
+- 在成稿前先生成情绪洞察与内容 brief，减少模板腔
 - 人工完成最后审核与发布（符合 MVP 定位）
 
 ---
@@ -42,6 +45,8 @@ content-factory-mvp/
 ├── agents/
 │   ├── scout.py
 │   ├── strategist.py
+│   ├── resonance_analyst.py
+│   ├── evidence_builder.py
 │   ├── writer.py
 │   └── art_director.py
 ├── crawlers/
@@ -94,6 +99,12 @@ python main.py "AI绘画, ComfyUI教程, 二次元"
 python main.py "AI绘画, 二次元"
 ```
 
+默认会给出 10 个候选选题，你可以一次选择 1 到 3 个：
+
+```bash
+python main.py "AI绘画, 二次元" --topic-count 10
+```
+
 如果要切换到 SDXL 系列模型：
 
 ```bash
@@ -110,12 +121,18 @@ python main.py
 执行完成后会得到：
 
 1. 终端中展示热点与选题推荐
-2. output 目录下新增一个 Markdown 草稿，文件名示例：
+2. 你可以在候选池中一次选择 1 到 3 个选题
+3. output 目录下新增一个或多个 Markdown 草稿，文件名示例：
    - 2026-03-28-xxx.md
-3. 草稿内包含：
+4. 每个草稿内包含：
    - 标题 + 正文 + 标签
    - 5 条基础配图描述
    - 20 条候选配图 Prompt
+
+终端还会额外展示：
+- 这条内容的情绪入口
+- 更适合的内容结构类型
+- 更具体的评论区引导问题
 
 ---
 
