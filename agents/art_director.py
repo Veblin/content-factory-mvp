@@ -40,24 +40,45 @@ class ArtDirectorAgent:
 
         user_input = "\n".join([f"- {p}" for p in base_prompts])
         system_prompt = _build_system_prompt(image_backend)
-        result = await chat(
-            system_prompt, user_input, model="deepseek-chat", temperature=0.8, max_tokens=4000
-        )
-        data = parse_json_response(result)
-        if not isinstance(data, list):
-            raise ValueError(
-                f"ArtDirector 返回结构错误：期望 JSON 数组，实际是 {type(data).__name__}。"
+        last_error: str | None = None
+
+        # LLM 偶发会输出被截断的 JSON，重试一次并降低随机性提升稳定性
+        for attempt in range(2):
+            final_prompt = system_prompt
+            if attempt == 1:
+                final_prompt += "\n\n补充约束：每条 positive_prompt / negative_prompt 请控制在 40 个英文词以内，避免冗长导致输出截断。"
+
+            result = await chat(
+                final_prompt,
+                user_input,
+                model="deepseek-chat",
+                temperature=0.8 if attempt == 0 else 0.4,
+                max_tokens=5000,
             )
-        required_keys = ["positive_prompt", "negative_prompt", "model", "size", "style_tag"]
-        for i, item in enumerate(data, 1):
-            if not isinstance(item, dict):
-                raise ValueError(f"ArtDirector 第 {i} 项不是对象：{item}")
-            if image_backend == "nano":
-                item["model"] = "nano-banana-pro"
-            missing = [k for k in required_keys if k not in item]
-            if missing:
-                raise ValueError(f"ArtDirector 第 {i} 项缺少字段 {missing}：{item}")
-        return data
+
+            try:
+                data = parse_json_response(result)
+                if not isinstance(data, list):
+                    raise ValueError(
+                        f"ArtDirector 返回结构错误：期望 JSON 数组，实际是 {type(data).__name__}。"
+                    )
+                required_keys = ["positive_prompt", "negative_prompt", "model", "size", "style_tag"]
+                for i, item in enumerate(data, 1):
+                    if not isinstance(item, dict):
+                        raise ValueError(f"ArtDirector 第 {i} 项不是对象：{item}")
+                    if image_backend == "nano":
+                        item["model"] = "nano-banana-pro"
+                    missing = [k for k in required_keys if k not in item]
+                    if missing:
+                        raise ValueError(f"ArtDirector 第 {i} 项缺少字段 {missing}：{item}")
+                return data
+            except ValueError as exc:
+                last_error = f"第 {attempt + 1} 次失败: {exc}. 原始响应前 500 字符: {result[:500]}"
+
+        raise ValueError(
+            "ArtDirector 连续 2 次生成结果都不符合结构要求。"
+            f"最后一次错误: {last_error}"
+        )
 
     @staticmethod
     def append_to_draft(file_path: str, prompt_pack: list[dict]) -> None:

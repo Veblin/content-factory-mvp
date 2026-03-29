@@ -79,14 +79,17 @@ async def run(user_ideas: str, image_backend: str = "nano"):
     print("\n[ArtDirector] 正在扩写配图候选 Prompt...")
     print(f"[ArtDirector] 当前配图模型后端: {image_backend}")
     art_director = ArtDirectorAgent()
-    prompt_pack = await art_director.expand_prompts(
-        draft["base_image_prompts"], image_backend=image_backend
-    )
-    print(f"[ArtDirector] ✅ 已生成 {len(prompt_pack)} 条候选配图 Prompt")
+    try:
+        prompt_pack = await art_director.expand_prompts(
+            draft["base_image_prompts"], image_backend=image_backend
+        )
+        print(f"[ArtDirector] ✅ 已生成 {len(prompt_pack)} 条候选配图 Prompt")
 
-    # 将候选 Prompt 追加到草稿
-    art_director.append_to_draft(draft["file_path"], prompt_pack)
-    print(f"[ArtDirector] 候选 Prompt 已追加到草稿文件")
+        # 将候选 Prompt 追加到草稿
+        art_director.append_to_draft(draft["file_path"], prompt_pack)
+        print(f"[ArtDirector] 候选 Prompt 已追加到草稿文件")
+    except Exception as exc:
+        print(f"[ArtDirector] ⚠️ 扩写失败，已保留 Writer 草稿。错误: {exc}")
 
     # 完成
     print("\n" + "=" * 50)
