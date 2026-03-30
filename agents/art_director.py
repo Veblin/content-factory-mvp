@@ -1,5 +1,6 @@
 """ArtDirector Agent (Lite) — 配图 Prompt 候选扩写"""
 import json
+from config import ART_DIRECTOR_MODEL
 from llm_client import chat, parse_json_response
 
 def _build_system_prompt(image_backend: str) -> str:
@@ -51,7 +52,7 @@ class ArtDirectorAgent:
             result = await chat(
                 final_prompt,
                 user_input,
-                model="deepseek-chat",
+                model=ART_DIRECTOR_MODEL,
                 temperature=0.8 if attempt == 0 else 0.4,
                 max_tokens=5000,
                 json_mode=True,

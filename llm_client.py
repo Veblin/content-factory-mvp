@@ -1,8 +1,23 @@
-"""统一的 DeepSeek API 调用封装（MVP 全部 Agent 共用）"""
+"""统一的 LLM API 调用封装（支持 DeepSeek / Qwen 多模型）"""
 import json
 import re
 import httpx
-from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+from config import (
+    DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL,
+    QWEN_API_KEY, QWEN_BASE_URL,
+)
+
+# 模型 → (base_url, api_key) 路由表
+_QWEN_MODELS = {"qwen-plus", "qwen-max", "qwen-turbo"}
+
+def _resolve_provider(model: str) -> tuple[str, str]:
+    """根据模型名返回 (base_url, api_key)。"""
+    if model in _QWEN_MODELS:
+        if not QWEN_API_KEY:
+            raise ValueError(f"使用模型 {model} 需要在 .env 中配置 QWEN_API_KEY")
+        return QWEN_BASE_URL, QWEN_API_KEY
+    # 默认走 DeepSeek
+    return DEEPSEEK_BASE_URL, DEEPSEEK_API_KEY
 
 
 def _try_repair_truncated_array(text: str) -> list | None:
@@ -69,12 +84,14 @@ async def chat(
     max_tokens: int = 4000,
     json_mode: bool = False,
 ) -> str:
-    """调用 DeepSeek Chat API，返回文本内容。
+    """调用 LLM Chat API，返回文本内容。
 
-    Args:
-        model: 'deepseek-chat'（Scout/ArtDirector/Strategist）或 'deepseek-reasoner'（Writer/Resonance/Evidence）
-        json_mode: 为 True 时传 response_format json_object，强制返回合法 JSON（仅 deepseek-chat 支持）
+    支持模型:
+        DeepSeek: 'deepseek-chat', 'deepseek-reasoner'
+        Qwen:     'qwen-plus', 'qwen-max', 'qwen-turbo'
     """
+    base_url, api_key = _resolve_provider(model)
+
     payload: dict = {
         "model": model,
         "messages": [
@@ -91,8 +108,8 @@ async def chat(
 
     async with httpx.AsyncClient(timeout=180) as client:
         resp = await client.post(
-            f"{DEEPSEEK_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+            f"{base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
             json=payload,
         )
         resp.raise_for_status()

@@ -1,4 +1,6 @@
 """Strategist Agent — 选题评分与推荐"""
+import asyncio
+from config import STRATEGIST_MODEL
 from llm_client import chat, parse_json_response
 import json
 
@@ -69,10 +71,53 @@ class StrategistAgent:
         *,
         candidate_count: int = 10,
     ) -> list[dict]:
-        generate_count = candidate_count * 2
+        keywords = [k.strip() for k in user_ideas.split(",") if k.strip()]
+        if len(keywords) <= 1:
+            # 单关键词：走单轮
+            per_kw_count = candidate_count * 2
+            all_candidates = await self._generate_for_keyword(
+                keywords[0] if keywords else user_ideas,
+                hot_trends,
+                per_kw_count,
+            )
+        else:
+            # 多关键词：每个关键词独立跑一轮，并发执行
+            per_kw_count = max(4, (candidate_count * 2) // len(keywords) + 1)
+            tasks = [
+                self._generate_for_keyword(kw, hot_trends, per_kw_count)
+                for kw in keywords
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            all_candidates = []
+            for kw, res in zip(keywords, results):
+                if isinstance(res, Exception):
+                    print(f"  ⚠️ 关键词「{kw}」选题生成失败: {res}")
+                else:
+                    all_candidates.extend(res)
+
+        if not all_candidates:
+            raise ValueError("Strategist: 所有关键词的选题生成均失败。")
+
+        all_candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
+        # 去重（标题相同的只保留首个）
+        seen_titles: set[str] = set()
+        unique: list[dict] = []
+        for item in all_candidates:
+            title = item.get("title", "")
+            if title not in seen_titles:
+                seen_titles.add(title)
+                unique.append(item)
+        return unique[:candidate_count]
+
+    async def _generate_for_keyword(
+        self,
+        keyword: str,
+        hot_trends: list[dict],
+        count: int,
+    ) -> list[dict]:
         user_msg = (
-            f"## 用户兴趣关键词\n{user_ideas}\n\n"
-            f"## 目标候选数\n请输出 {generate_count} 个候选选题（系统将从中筛选出最优 {candidate_count} 个）。\n\n"
+            f"## 用户兴趣关键词\n{keyword}\n\n"
+            f"## 目标候选数\n请围绕上述关键词输出 {count} 个候选选题。\n\n"
             f"## 热点数据\n{json.dumps(hot_trends, ensure_ascii=False, indent=2)}"
         )
         last_error: str | None = None
@@ -86,20 +131,19 @@ class StrategistAgent:
             result = await chat(
                 prompt,
                 user_msg,
-                model="deepseek-chat",
+                model=STRATEGIST_MODEL,
                 temperature=0.3,
                 max_tokens=6000,
                 json_mode=True,
             )
             try:
                 data = self._normalize_and_validate(parse_json_response(result))
-                data.sort(key=lambda x: x.get("score", 0), reverse=True)
-                return data[:candidate_count]
+                return data
             except ValueError as exc:
                 last_error = f"第 {attempt + 1} 次失败: {exc}. 原始响应前 500 字符: {result[:500]}"
 
         raise ValueError(
-            "Strategist 连续 2 次生成结果都不符合结构要求。"
+            f"关键词「{keyword}」连续 2 次生成结果不符合结构要求。"
             f"最后一次错误: {last_error}"
         )
 

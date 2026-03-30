@@ -1,5 +1,6 @@
 """Resonance Analyst — 将表层选题翻译成用户真实情绪入口"""
 import json
+from config import RESONANCE_MODEL
 from llm_client import chat, parse_json_response
 
 
@@ -34,7 +35,7 @@ class ResonanceAnalyst:
         result = await chat(
             SYSTEM_PROMPT,
             user_msg,
-            model="deepseek-chat",
+            model=RESONANCE_MODEL,
             temperature=0.3,
             max_tokens=2000,
             json_mode=True,

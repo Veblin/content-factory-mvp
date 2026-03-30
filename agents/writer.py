@@ -2,7 +2,7 @@
 import json
 import re
 from datetime import date
-from config import OUTPUT_DIR
+from config import OUTPUT_DIR, WRITER_MODEL
 from llm_client import chat, parse_json_response
 
 SYSTEM_PROMPT = """你是小红书内容创作编辑。你会收到：
@@ -71,7 +71,7 @@ class WriterAgent:
             result = await chat(
                 SYSTEM_PROMPT,
                 user_msg,
-                model="deepseek-chat",
+                model=WRITER_MODEL,
                 temperature=0.7 if attempt == 0 else 0.3,
                 max_tokens=4000,
                 json_mode=True,
@@ -94,7 +94,7 @@ class WriterAgent:
                             ensure_ascii=False,
                             indent=2,
                         ),
-                        model="deepseek-chat",
+                        model=WRITER_MODEL,
                         temperature=0.3,
                         max_tokens=4000,
                         json_mode=True,

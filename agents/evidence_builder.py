@@ -1,5 +1,6 @@
 """Evidence Builder — 为情绪入口补齐可信细节和内容结构"""
 import json
+from config import EVIDENCE_MODEL
 from llm_client import chat, parse_json_response
 
 
@@ -43,7 +44,7 @@ class EvidenceBuilder:
         result = await chat(
             SYSTEM_PROMPT,
             user_msg,
-            model="deepseek-chat",
+            model=EVIDENCE_MODEL,
             temperature=0.4,
             max_tokens=2500,
             json_mode=True,

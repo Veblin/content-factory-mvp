@@ -10,6 +10,14 @@
 """
 import argparse
 import asyncio
+from config import (
+    ART_DIRECTOR_MODEL,
+    EVIDENCE_MODEL,
+    RESONANCE_MODEL,
+    SCOUT_MODEL,
+    STRATEGIST_MODEL,
+    WRITER_MODEL,
+)
 from agents.resonance_analyst import ResonanceAnalyst
 from agents.evidence_builder import EvidenceBuilder
 from agents.scout import ScoutAgent
@@ -62,6 +70,13 @@ async def run(user_ideas: str, image_backend: str = "nano", topic_count: int = 1
     print("  内容工厂 MVP — 小红书图文生成流水线")
     print("=" * 50)
     print(f"\n📌 用户关键词: {user_ideas}\n")
+    print("[LLM] 当前模型配置:")
+    print(f"  · Scout: {SCOUT_MODEL}")
+    print(f"  · Strategist: {STRATEGIST_MODEL}")
+    print(f"  · Resonance: {RESONANCE_MODEL}")
+    print(f"  · Evidence: {EVIDENCE_MODEL}")
+    print(f"  · Writer: {WRITER_MODEL}")
+    print(f"  · ArtDirector: {ART_DIRECTOR_MODEL}\n")
 
     # Step 1: 采集热点
     print("[Scout] 正在采集 B站 + 微博热点...")
@@ -74,7 +89,13 @@ async def run(user_ideas: str, image_backend: str = "nano", topic_count: int = 1
         print(f"  ... 共 {len(hot_trends)} 条")
 
     # Step 2: 选题评分
-    print(f"\n[Strategist] 正在生成 {topic_count * 2} 个候选，筛选出最优 {topic_count} 个...")
+    keywords = [k.strip() for k in user_ideas.split(",") if k.strip()]
+    if len(keywords) > 1:
+        print(f"\n[Strategist] 检测到 {len(keywords)} 个独立主题，分别生成选题...")
+        for kw in keywords:
+            print(f"  · {kw}")
+    else:
+        print("\n[Strategist] 正在生成候选选题...")
     strategist = StrategistAgent()
     topics = await strategist.score(user_ideas, hot_trends, candidate_count=max(3, topic_count))
     print(f"[Strategist] ✅ 筛选完成，推荐 {len(topics)} 个选题\n")
