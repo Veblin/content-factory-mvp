@@ -12,6 +12,9 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 QWEN_API_KEY = os.getenv("QWEN_API_KEY", "")
 QWEN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "")
+MINIMAX_BASE_URL = "https://api.minimaxi.com/v1"
+
 SCOUT_MODEL = os.getenv("SCOUT_MODEL", "deepseek-chat")
 STRATEGIST_MODEL = os.getenv("STRATEGIST_MODEL", "deepseek-chat")
 RESONANCE_MODEL = os.getenv("RESONANCE_MODEL", "deepseek-chat")
