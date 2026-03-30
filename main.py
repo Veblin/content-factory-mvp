@@ -74,10 +74,10 @@ async def run(user_ideas: str, image_backend: str = "nano", topic_count: int = 1
         print(f"  ... 共 {len(hot_trends)} 条")
 
     # Step 2: 选题评分
-    print("\n[Strategist] 正在生成选题方案...")
+    print(f"\n[Strategist] 正在生成 {topic_count * 2} 个候选，筛选出最优 {topic_count} 个...")
     strategist = StrategistAgent()
     topics = await strategist.score(user_ideas, hot_trends, candidate_count=max(3, topic_count))
-    print(f"[Strategist] ✅ 推荐 {len(topics)} 个选题\n")
+    print(f"[Strategist] ✅ 筛选完成，推荐 {len(topics)} 个选题\n")
     for i, t in enumerate(topics, 1):
         print(f"  {i}. {t['title']}（{t['score']}/10）— {t.get('reason', '')}")
 
