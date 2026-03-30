@@ -54,6 +54,7 @@ class ArtDirectorAgent:
                 model="deepseek-chat",
                 temperature=0.8 if attempt == 0 else 0.4,
                 max_tokens=5000,
+                json_mode=True,
             )
 
             try:

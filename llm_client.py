@@ -5,15 +5,55 @@ import httpx
 from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 
-def _extract_first_json_block(text: str) -> list | dict:
-    """Extract the first valid JSON object/array from mixed text."""
+def _try_repair_truncated_array(text: str) -> list | None:
+    """Try to recover as many complete items as possible from a truncated JSON array."""
+    m = re.search(r'\[', text)
+    if not m:
+        return None
     decoder = json.JSONDecoder()
+    items: list = []
+    tail = text[m.start() + 1:]  # content after opening '['
+    while True:
+        tail = tail.lstrip()
+        if not tail or tail[0] == ']':
+            break
+        if tail[0] == ',':
+            tail = tail[1:].lstrip()
+        try:
+            item, end = decoder.raw_decode(tail)
+            items.append(item)
+            tail = tail[end:]
+        except json.JSONDecodeError:
+            break  # truncated — stop here, keep what we have
+    return items if items else None
+
+
+def _extract_first_json_block(text: str) -> list | dict:
+    """Extract the first valid JSON object/array from mixed text.
+    Tries the outermost array first (with truncation repair), then falls back
+    to scanning for the first parseable block.
+    """
+    decoder = json.JSONDecoder()
+    # First pass: try to find the outermost '[' and repair if truncated
+    outer_bracket = text.find('[')
+    if outer_bracket != -1:
+        try:
+            data, _ = decoder.raw_decode(text[outer_bracket:])
+            if isinstance(data, list):
+                return data
+        except json.JSONDecodeError:
+            repaired = _try_repair_truncated_array(text[outer_bracket:])
+            if repaired and len(repaired) >= 1:
+                return repaired
+    # Second pass: scan char-by-char for any parseable block, prefer objects over arrays of strings
     for i, ch in enumerate(text):
-        if ch not in "[{":
+        if ch not in '[{':
             continue
         try:
             data, _ = decoder.raw_decode(text[i:])
-            if isinstance(data, (dict, list)):
+            if isinstance(data, dict):
+                return data
+            if isinstance(data, list) and data and isinstance(data[0], dict):
                 return data
         except json.JSONDecodeError:
             continue
@@ -27,11 +67,13 @@ async def chat(
     model: str = "deepseek-chat",
     temperature: float = 0.5,
     max_tokens: int = 4000,
+    json_mode: bool = False,
 ) -> str:
     """调用 DeepSeek Chat API，返回文本内容。
 
     Args:
-        model: 'deepseek-chat'（Scout/ArtDirector）或 'deepseek-reasoner'（Strategist/Writer）
+        model: 'deepseek-chat'（Scout/ArtDirector/Strategist）或 'deepseek-reasoner'（Writer/Resonance/Evidence）
+        json_mode: 为 True 时传 response_format json_object，强制返回合法 JSON（仅 deepseek-chat 支持）
     """
     payload: dict = {
         "model": model,
@@ -41,9 +83,11 @@ async def chat(
         ],
         "max_tokens": max_tokens,
     }
-    # deepseek-reasoner 不支持 temperature 参数
+    # deepseek-reasoner 不支持 temperature 和 response_format
     if model != "deepseek-reasoner":
         payload["temperature"] = temperature
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
 
     async with httpx.AsyncClient(timeout=180) as client:
         resp = await client.post(

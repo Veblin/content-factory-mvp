@@ -15,5 +15,5 @@ class ScoutAgent:
         weibo = await fetch_weibo_hot()
         raw = f"## B站热门\n{bilibili}\n\n## 微博热搜\n{weibo}"
 
-        result = await chat(SYSTEM_PROMPT, raw, model="deepseek-chat", temperature=0.1)
+        result = await chat(SYSTEM_PROMPT, raw, model="deepseek-chat", temperature=0.1, json_mode=True)
         return parse_json_response(result)

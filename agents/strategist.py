@@ -80,8 +80,10 @@ class StrategistAgent:
             result = await chat(
                 prompt,
                 user_msg,
-                model="deepseek-reasoner",
+                model="deepseek-chat",
                 temperature=0.3,
+                max_tokens=6000,
+                json_mode=True,
             )
             try:
                 data = self._normalize_and_validate(parse_json_response(result))
