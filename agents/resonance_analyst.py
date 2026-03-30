@@ -34,9 +34,10 @@ class ResonanceAnalyst:
         result = await chat(
             SYSTEM_PROMPT,
             user_msg,
-            model="deepseek-reasoner",
+            model="deepseek-chat",
             temperature=0.3,
             max_tokens=2000,
+            json_mode=True,
         )
         data = self._normalize(parse_json_response(result))
         if not isinstance(data, dict):

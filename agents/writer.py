@@ -70,9 +70,10 @@ class WriterAgent:
             result = await chat(
                 SYSTEM_PROMPT,
                 user_msg,
-                model="deepseek-reasoner",
+                model="deepseek-chat",
                 temperature=0.7 if attempt == 0 else 0.3,
                 max_tokens=4000,
+                json_mode=True,
             )
             try:
                 parsed = parse_json_response(result)
@@ -92,8 +93,10 @@ class WriterAgent:
                             ensure_ascii=False,
                             indent=2,
                         ),
-                        model="deepseek-reasoner",
+                        model="deepseek-chat",
+                        temperature=0.3,
                         max_tokens=4000,
+                        json_mode=True,
                     )
                     data = self._normalize_and_validate(parse_json_response(revised))
                 break
