@@ -48,7 +48,11 @@ class BaseProvider:
         }
         if self.supports_temperature(model):
             payload["temperature"] = temperature
-        if json_mode and self.supports_json_mode(model):
+        if json_mode:
+            if not self.supports_json_mode(model):
+                raise ValueError(
+                    f"模型 {model} 不支持 JSON mode，但当前任务要求结构化 JSON 输出。"
+                )
             payload["response_format"] = {"type": "json_object"}
         return payload
 

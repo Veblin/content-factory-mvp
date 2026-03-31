@@ -38,11 +38,11 @@ def _extract_first_json_block(text: str) -> list | dict:
     if outer_bracket != -1:
         try:
             data, _ = decoder.raw_decode(text[outer_bracket:])
-            if isinstance(data, list):
+            if isinstance(data, list) and data and isinstance(data[0], dict):
                 return data
         except json.JSONDecodeError:
             repaired = _try_repair_truncated_array(text[outer_bracket:])
-            if repaired and len(repaired) >= 1:
+            if repaired and len(repaired) >= 1 and isinstance(repaired[0], dict):
                 return repaired
     # Second pass: scan char-by-char for any parseable block, prefer objects over arrays of strings
     for i, ch in enumerate(text):
@@ -88,6 +88,9 @@ async def chat(
 
 def parse_json_response(text: str) -> list | dict:
     """解析 LLM 返回的 JSON（兼容 markdown 代码块包裹、前后多余文本）。"""
+    # 去除 MiniMax / reasoning 模型可能返回的 <think>...</think> 思考块
+    text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
+
     # 去除可能的 ```json ... ``` 包裹
     cleaned = re.sub(r"^```(?:json)?\s*\n?", "", text.strip())
     cleaned = re.sub(r"\n?```\s*$", "", cleaned)

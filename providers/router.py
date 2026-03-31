@@ -15,4 +15,8 @@ def get_provider(model: str):
         return _QWEN_PROVIDER
     if model in MiniMaxProvider.MODEL_NAMES:
         return _MINIMAX_PROVIDER
-    return _DEEPSEEK_PROVIDER
+    if model.startswith("deepseek-"):
+        return _DEEPSEEK_PROVIDER
+    raise ValueError(
+        f"未知模型: {model}。请检查 .env 中模型配置是否拼写正确。"
+    )
